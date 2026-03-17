@@ -1,46 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { Session } from '../database/entities/session.entity';
 import { RedditPost } from '../database/entities/reddit-post.entity';
 import { RedditComment } from '../database/entities/reddit-comment.entity';
 
+// Reddit public JSON API — no credentials needed, ~10 req/min per IP
+const REDDIT_BASE = 'https://www.reddit.com';
+const USER_AGENT = 'reddit-analyzer/1.0 (nodejs)';
+
 @Injectable()
 export class RedditService {
   private readonly logger = new Logger(RedditService.name);
-  private accessToken: string | null = null;
-  private tokenExpiry: number = 0;
 
   constructor(
     @InjectRepository(Session) private readonly sessionRepo: Repository<Session>,
     @InjectRepository(RedditPost) private readonly postRepo: Repository<RedditPost>,
     @InjectRepository(RedditComment) private readonly commentRepo: Repository<RedditComment>,
-    private readonly config: ConfigService,
   ) {}
 
-  private async getAccessToken(): Promise<string> {
-    if (this.accessToken && Date.now() < this.tokenExpiry) return this.accessToken;
-
-    const clientId = this.config.get('REDDIT_CLIENT_ID');
-    const clientSecret = this.config.get('REDDIT_CLIENT_SECRET');
-    const username = this.config.get('REDDIT_USERNAME');
-    const password = this.config.get('REDDIT_PASSWORD');
-    const userAgent = this.config.get('REDDIT_USER_AGENT') || 'reddit-analyzer/1.0';
-
-    const response = await axios.post(
-      'https://www.reddit.com/api/v1/access_token',
-      `grant_type=password&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
-      {
-        auth: { username: clientId, password: clientSecret },
-        headers: { 'User-Agent': userAgent, 'Content-Type': 'application/x-www-form-urlencoded' },
-      },
-    );
-
-    this.accessToken = response.data.access_token;
-    this.tokenExpiry = Date.now() + response.data.expires_in * 1000 - 60000;
-    return this.accessToken;
+  private get headers() {
+    return { 'User-Agent': USER_AGENT };
   }
 
   async parseSession(
@@ -53,10 +34,6 @@ export class RedditService {
     await this.sessionRepo.update(sessionId, { parseStatus: 'running' });
 
     try {
-      const token = await this.getAccessToken();
-      const userAgent = this.config.get('REDDIT_USER_AGENT') || 'reddit-analyzer/1.0';
-
-      const headers = { Authorization: `Bearer ${token}`, 'User-Agent': userAgent };
       const query = session.keywords.join(' ');
       const timeRange = session.timeRange || 'week';
       const sort = session.sort || 'relevance';
@@ -65,17 +42,18 @@ export class RedditService {
       const posts: any[] = [];
       let after: string | null = null;
       let pageCount = 0;
-      const maxPages = 3;
+      const maxPages = 4; // 4 × 25 = up to 100 posts
 
       while (pageCount < maxPages) {
-        let url = `https://oauth.reddit.com/search?q=${encodeURIComponent(query)}&t=${timeRange}&sort=${sort}&limit=25&type=link`;
+        let url = `${REDDIT_BASE}/search.json?q=${encodeURIComponent(query)}&t=${timeRange}&sort=${sort}&limit=25&type=link`;
         if (session.subreddits?.length > 0) {
-          url += `&restrict_sr=false`;
-          // search within specific subreddits by appending to query
+          // prefix query with subreddit filter using OR
+          const subFilter = session.subreddits.map(s => `subreddit:${s}`).join(' OR ');
+          url = `${REDDIT_BASE}/search.json?q=${encodeURIComponent(query + ' (' + subFilter + ')')}&t=${timeRange}&sort=${sort}&limit=25&type=link`;
         }
         if (after) url += `&after=${after}`;
 
-        const res = await axios.get(url, { headers });
+        const res = await axios.get(url, { headers: this.headers });
         const children = res.data?.data?.children || [];
         if (children.length === 0) break;
 
@@ -86,7 +64,7 @@ export class RedditService {
         onProgress({ pct: Math.round((pageCount / maxPages) * 30), posts: posts.length, comments: 0 });
 
         if (!after) break;
-        await new Promise(r => setTimeout(r, 1000)); // respect rate limit
+        await new Promise(r => setTimeout(r, 2000)); // public API: ~10 req/min
       }
 
       // Upsert posts
@@ -124,8 +102,8 @@ export class RedditService {
         const post = savedPosts[i];
         const p = posts[i];
         try {
-          const commentsUrl = `https://oauth.reddit.com/r/${p?.subreddit}/comments/${p?.id}?sort=top&limit=${topN}`;
-          const commentsRes = await axios.get(commentsUrl, { headers });
+          const commentsUrl = `${REDDIT_BASE}/r/${p?.subreddit}/comments/${p?.id}.json?sort=top&limit=${topN}`;
+          const commentsRes = await axios.get(commentsUrl, { headers: this.headers });
           const commentData = commentsRes.data?.[1]?.data?.children || [];
 
           for (const c of commentData) {
