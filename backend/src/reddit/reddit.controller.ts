@@ -65,6 +65,11 @@ export class RedditController {
     });
   }
 
+  @Get('parse/progress')
+  getProgress(@Param('sessionId') sessionId: string) {
+    return this.redditService.getProgress(sessionId);
+  }
+
   @Get('posts')
   getPosts(
     @Param('sessionId') sessionId: string,

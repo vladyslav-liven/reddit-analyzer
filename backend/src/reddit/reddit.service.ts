@@ -13,6 +13,7 @@ const USER_AGENT = 'reddit-analyzer/1.0 (nodejs)';
 @Injectable()
 export class RedditService {
   private readonly logger = new Logger(RedditService.name);
+  private readonly progressStore = new Map<string, { pct: number; posts: number; comments: number; message: string }>();
 
   constructor(
     @InjectRepository(Session) private readonly sessionRepo: Repository<Session>,
@@ -24,10 +25,22 @@ export class RedditService {
     return { 'User-Agent': USER_AGENT };
   }
 
+  getProgress(sessionId: string) {
+    return this.progressStore.get(sessionId) || null;
+  }
+
+  clearProgress(sessionId: string) {
+    this.progressStore.delete(sessionId);
+  }
+
   async parseSession(
     sessionId: string,
     onProgress: (data: { pct: number; posts: number; comments: number; message?: string }) => void,
   ) {
+    const emitProgress = (data: { pct: number; posts: number; comments: number; message?: string }) => {
+      this.progressStore.set(sessionId, { pct: data.pct, posts: data.posts, comments: data.comments, message: data.message || '' });
+      onProgress(data);
+    };
     const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
     if (!session) throw new Error(`Session ${sessionId} not found`);
 
@@ -79,7 +92,7 @@ export class RedditService {
         after = res.data?.data?.after;
         pageCount++;
 
-        onProgress({ pct: Math.round((pageCount / maxPages) * 30), posts: posts.length, comments: 0, message: `Збираю пости, сторінка ${pageCount}/${maxPages}...` });
+        emitProgress({ pct: Math.round((pageCount / maxPages) * 30), posts: posts.length, comments: 0, message: `Збираю пости, сторінка ${pageCount}/${maxPages}...` });
 
         if (!after) break;
         await new Promise(r => setTimeout(r, 2000));
@@ -112,7 +125,7 @@ export class RedditService {
         }
       }
 
-      onProgress({ pct: 40, posts: savedPosts.length, comments: 0, message: `Збережено ${savedPosts.length} постів. Завантажую коментарі...` });
+      emitProgress({ pct: 40, posts: savedPosts.length, comments: 0, message: `Збережено ${savedPosts.length} постів. Завантажую коментарі...` });
 
       // Fetch comments for each post
       let commentCount = 0;
@@ -148,11 +161,12 @@ export class RedditService {
         }
 
         const pct = 40 + Math.round(((i + 1) / savedPosts.length) * 55);
-        onProgress({ pct, posts: savedPosts.length, comments: commentCount, message: `Коментарі: пост ${i + 1}/${savedPosts.length} (r/${p?.subreddit || '?'})` });
+        emitProgress({ pct, posts: savedPosts.length, comments: commentCount, message: `Коментарі: пост ${i + 1}/${savedPosts.length} (r/${p?.subreddit || '?'})` });
       }
 
       await this.sessionRepo.update(sessionId, { parseStatus: 'done', lastParsedAt: new Date() });
-      onProgress({ pct: 100, posts: savedPosts.length, comments: commentCount });
+      emitProgress({ pct: 100, posts: savedPosts.length, comments: commentCount, message: 'Готово!' });
+      this.clearProgress(sessionId);
     } catch (error) {
       this.logger.error(`Parse failed for session ${sessionId}: ${error.message}`);
       await this.sessionRepo.update(sessionId, { parseStatus: 'failed' });

@@ -37,20 +37,37 @@ export const useRedditStore = defineStore('reddit', () => {
     if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
   }
 
+  let lastLoggedMessage = ''
+
   function startPolling(sessionId: string) {
     stopPolling()
     pollInterval = setInterval(async () => {
       try {
-        const { data } = await api.get(`/sessions/${sessionId}`)
-        if (data.parseStatus === 'done') {
+        // 1. Try to get live progress from the in-memory store
+        const { data: progress } = await api.get(`/sessions/${sessionId}/parse/progress`)
+        if (progress) {
+          parseProgress.value = { pct: progress.pct, posts: progress.posts, comments: progress.comments }
+          if (progress.message && progress.message !== lastLoggedMessage) {
+            parseMessage.value = progress.message
+            addLog(progress.message)
+            lastLoggedMessage = progress.message
+          }
+          return
+        }
+
+        // 2. No live progress — check session status (done/failed)
+        const { data: session } = await api.get(`/sessions/${sessionId}`)
+        if (session.parseStatus === 'done') {
           parseStatus.value = 'done'
-          parseProgress.value = { pct: 100, posts: data.postCount || 0, comments: 0 }
+          parseProgress.value = { pct: 100, posts: session.postCount || parseProgress.value?.posts || 0, comments: parseProgress.value?.comments || 0 }
+          parseMessage.value = 'Готово!'
+          addLog('Готово!')
           stopPolling()
-          eventSource?.close()
-        } else if (data.parseStatus === 'failed') {
+        } else if (session.parseStatus === 'failed') {
           parseStatus.value = 'error'
+          parseMessage.value = 'Помилка парсингу'
+          addLog('Помилка парсингу')
           stopPolling()
-          eventSource?.close()
         }
       } catch {}
     }, 2000)
@@ -62,42 +79,43 @@ export const useRedditStore = defineStore('reddit', () => {
     parseMessage.value = 'Запускаємо парсинг...'
     parseLogs.value = []
     parseStartTime.value = Date.now()
+    lastLoggedMessage = ''
     addLog('Запускаємо парсинг...')
     await redditApi.startParse(sessionId, config)
 
+    // Start polling immediately — works on Railway where SSE is unreliable
+    startPolling(sessionId)
+
+    // Also try SSE — if it works (local dev), it gives real-time updates
     if (eventSource) eventSource.close()
     eventSource = new EventSource(`/api/sessions/${sessionId}/parse/status`)
 
     eventSource.onmessage = (e) => {
-      stopPolling()
       const data = JSON.parse(e.data)
       if (data.type === 'progress') {
         parseProgress.value = { pct: data.pct, posts: data.posts, comments: data.comments }
-        if (data.message) { parseMessage.value = data.message; addLog(data.message) }
+        if (data.message && data.message !== lastLoggedMessage) {
+          parseMessage.value = data.message
+          addLog(data.message)
+          lastLoggedMessage = data.message
+        }
       } else if (data.type === 'done') {
         parseStatus.value = 'done'
         parseProgress.value = { pct: 100, posts: data.posts || 0, comments: data.comments || 0 }
         parseMessage.value = 'Готово!'
         addLog('Готово!')
+        stopPolling()
         eventSource?.close()
       } else if (data.type === 'error') {
         parseStatus.value = 'error'
         parseMessage.value = 'Помилка парсингу'
         addLog('Помилка парсингу')
+        stopPolling()
         eventSource?.close()
       }
     }
 
-    eventSource.onerror = () => {
-      eventSource?.close()
-      // SSE failed — fall back to polling
-      if (parseStatus.value === 'running') startPolling(sessionId)
-    }
-
-    // Fallback: if no SSE event within 4s, start polling
-    setTimeout(() => {
-      if (parseStatus.value === 'running' && !pollInterval) startPolling(sessionId)
-    }, 4000)
+    eventSource.onerror = () => { eventSource?.close() }
   }
 
   function resetParse() {
