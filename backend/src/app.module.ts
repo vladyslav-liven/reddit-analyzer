@@ -39,8 +39,6 @@ import { AiAnalysis } from './database/entities/ai-analysis.entity';
     ServeStaticModule.forRoot({
       rootPath: path.join(__dirname, '..', 'public'),
       exclude: ['/api/(.*)'],
-      serveStaticOptions: { index: false, fallthrough: true },
-      renderPath: '/*',
     }),
     SessionsModule,
     RedditModule,
