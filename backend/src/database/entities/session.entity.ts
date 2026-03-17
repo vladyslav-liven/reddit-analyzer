@@ -32,6 +32,9 @@ export class Session {
   @Column({ default: 10 })
   topNComments: number;
 
+  @Column({ default: 100 })
+  maxPosts: number;
+
   @Column({ type: 'text', default: '' })
   systemPrompt: string;
 

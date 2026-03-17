@@ -21,4 +21,10 @@ export class ParseConfigDto {
   @Min(1)
   @Max(50)
   topNComments?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(10)
+  @Max(500)
+  maxPosts?: number;
 }

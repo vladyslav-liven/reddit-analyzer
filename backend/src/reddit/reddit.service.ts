@@ -38,11 +38,12 @@ export class RedditService {
       const timeRange = session.timeRange || 'week';
       const sort = session.sort || 'relevance';
       const topN = session.topNComments || 10;
+      const maxPosts = session.maxPosts || 100;
+      const maxPages = Math.ceil(maxPosts / 25);
 
       const posts: any[] = [];
       let after: string | null = null;
       let pageCount = 0;
-      const maxPages = 4; // 4 × 25 = up to 100 posts
 
       while (pageCount < maxPages) {
         let url = `${REDDIT_BASE}/search.json?q=${encodeURIComponent(query)}&t=${timeRange}&sort=${sort}&limit=25&type=link`;

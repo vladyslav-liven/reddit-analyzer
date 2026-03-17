@@ -26,4 +26,10 @@ export class UpdateSessionDto {
   @IsOptional()
   @IsString()
   systemPrompt?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(10)
+  @Max(500)
+  maxPosts?: number;
 }

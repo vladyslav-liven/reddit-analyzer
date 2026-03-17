@@ -13,9 +13,20 @@ export interface AnalysisInput {
   systemPrompt: string;
 }
 
+export interface InsightEvidence {
+  posts: string[];
+  comments: string[];
+  phrases: string[];
+}
+
+export interface KeyInsight {
+  insight: string;
+  evidence: InsightEvidence;
+}
+
 export interface AnalysisResult {
   summary: string;
-  keyInsights: string[];
+  keyInsights: KeyInsight[];
   sentiment: { overall: string; byTopic: Record<string, string> };
   painPoints: string[];
   trendingPhrases: string[];

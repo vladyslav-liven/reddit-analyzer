@@ -1,27 +1,32 @@
 import { Controller, Post, Get, Param, Body } from '@nestjs/common';
-import { AiService } from './ai.service';
 import { IsString } from 'class-validator';
+import { AiService } from './ai.service';
 
 class AnalyzeDto {
   @IsString()
-  provider: string;
+  model: string;
 }
 
-@Controller('sessions/:sessionId')
+@Controller()
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
-  @Post('analyze')
-  analyze(@Param('sessionId') sessionId: string, @Body() dto: AnalyzeDto) {
-    return this.aiService.analyze(sessionId, dto.provider);
+  @Get('models')
+  getModels() {
+    return this.aiService.getModels();
   }
 
-  @Get('analyses')
+  @Post('sessions/:sessionId/analyze')
+  analyze(@Param('sessionId') sessionId: string, @Body() dto: AnalyzeDto) {
+    return this.aiService.analyze(sessionId, dto.model);
+  }
+
+  @Get('sessions/:sessionId/analyses')
   getAnalyses(@Param('sessionId') sessionId: string) {
     return this.aiService.getAnalyses(sessionId);
   }
 
-  @Get('analyses/:analysisId')
+  @Get('sessions/:sessionId/analyses/:analysisId')
   getAnalysis(@Param('analysisId') analysisId: string) {
     return this.aiService.getAnalysis(analysisId);
   }

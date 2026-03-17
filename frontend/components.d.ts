@@ -7,6 +7,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AnalysisCharts: typeof import('./src/components/analysis/AnalysisCharts.vue')['default']
     AnalysisTab: typeof import('./src/components/analysis/AnalysisTab.vue')['default']
     AppSidebar: typeof import('./src/components/layout/AppSidebar.vue')['default']
     CreateSessionModal: typeof import('./src/components/layout/CreateSessionModal.vue')['default']
@@ -23,6 +24,7 @@ declare module 'vue' {
     ElInput: typeof import('element-plus/es')['ElInput']
     ElInputNumber: typeof import('element-plus/es')['ElInputNumber']
     ElOption: typeof import('element-plus/es')['ElOption']
+    ElOptionGroup: typeof import('element-plus/es')['ElOptionGroup']
     ElPagination: typeof import('element-plus/es')['ElPagination']
     ElPopconfirm: typeof import('element-plus/es')['ElPopconfirm']
     ElProgress: typeof import('element-plus/es')['ElProgress']
@@ -34,6 +36,7 @@ declare module 'vue' {
     ElTabPane: typeof import('element-plus/es')['ElTabPane']
     ElTabs: typeof import('element-plus/es')['ElTabs']
     ElTag: typeof import('element-plus/es')['ElTag']
+    ElTooltip: typeof import('element-plus/es')['ElTooltip']
     ExportButtons: typeof import('./src/components/shared/ExportButtons.vue')['default']
     ParseTab: typeof import('./src/components/parse/ParseTab.vue')['default']
     PostCard: typeof import('./src/components/results/PostCard.vue')['default']

@@ -23,7 +23,7 @@ export class AiAnalysis {
   summary: string;
 
   @Column({ type: 'jsonb', default: '[]' })
-  keyInsights: string[];
+  keyInsights: any[];
 
   @Column({ type: 'jsonb', default: '{}' })
   sentiment: object;
@@ -39,6 +39,15 @@ export class AiAnalysis {
 
   @Column({ nullable: true })
   tokensUsed: number;
+
+  @Column({ nullable: true })
+  inputTokens: number;
+
+  @Column({ nullable: true })
+  outputTokens: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 6, nullable: true })
+  costUsd: number;
 
   @CreateDateColumn()
   createdAt: Date;

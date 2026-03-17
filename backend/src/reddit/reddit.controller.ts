@@ -24,21 +24,33 @@ export class RedditController {
       timeRange: dto.timeRange,
       sort: dto.sort,
       topNComments: dto.topNComments,
+      maxPosts: dto.maxPosts,
     });
     const job = await this.parseQueue.add('parse', { sessionId });
     return { jobId: job.id, status: 'queued' };
   }
 
   @Get('parse/status')
-  sseStatus(@Param('sessionId') sessionId: string, @Res() res: Response) {
+  async sseStatus(@Param('sessionId') sessionId: string, @Res() res: Response) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    const send = (data: object) => {
-      res.write(`data: ${JSON.stringify(data)}\n\n`);
-    };
+    const send = (data: object) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+
+    // If already done/failed — respond immediately
+    const session = await this.sessionsService.findOne(sessionId);
+    if (session?.parseStatus === 'done') {
+      send({ type: 'done', pct: 100, posts: 0, comments: 0 });
+      res.end();
+      return;
+    }
+    if (session?.parseStatus === 'failed') {
+      send({ type: 'error' });
+      res.end();
+      return;
+    }
 
     this.parseProcessor.setProgressCallback(sessionId, (data) => {
       send(data);
