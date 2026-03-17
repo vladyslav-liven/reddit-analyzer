@@ -32,13 +32,26 @@ import { AiAnalysis } from './database/entities/ai-analysis.entity';
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        redis: config.get('REDIS_URL') || { host: 'localhost', port: 6379 },
-      }),
+      useFactory: (config: ConfigService) => {
+        const redisUrl = config.get<string>('REDIS_URL');
+        if (!redisUrl) return { redis: { host: 'localhost', port: 6379 } };
+        try {
+          const url = new URL(redisUrl);
+          return {
+            redis: {
+              host: url.hostname,
+              port: parseInt(url.port, 10) || 6379,
+              password: url.password ? decodeURIComponent(url.password) : undefined,
+              tls: url.protocol === 'rediss:' ? {} : undefined,
+            },
+          };
+        } catch {
+          return { redis: { host: 'localhost', port: 6379 } };
+        }
+      },
     }),
     ServeStaticModule.forRoot({
       rootPath: path.join(__dirname, '..', 'public'),
-      exclude: ['/api/(.*)'],
     }),
     SessionsModule,
     RedditModule,
