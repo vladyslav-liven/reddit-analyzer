@@ -117,9 +117,17 @@
       <div class="progress-stats">
         <span>Пости: {{ parseProgress?.posts || 0 }}</span>
         <span>Коментарі: {{ parseProgress?.comments || 0 }}</span>
+        <span class="elapsed">⏱ {{ elapsedStr }}</span>
         <span v-if="parseStatus === 'done'" style="color: #67c23a; font-weight: 600">✓ Готово!</span>
       </div>
       <el-progress :percentage="parseProgress?.pct || 0" :status="parseStatus === 'done' ? 'success' : undefined" />
+      <div v-if="parseMessage" class="parse-message">{{ parseMessage }}</div>
+      <div v-if="parseLogs.length" class="parse-log" ref="logEl">
+        <div v-for="(entry, i) in parseLogs" :key="i" class="log-entry">
+          <span class="log-time">{{ entry.time }}</span>
+          <span class="log-text">{{ entry.text }}</span>
+        </div>
+      </div>
     </div>
 
     <el-alert v-if="parseStatus === 'error'" title="Помилка парсингу. Перевір підключення до інтернету." type="error" style="margin-top: 16px" />
@@ -127,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRedditStore } from '../../stores/reddit'
 
@@ -137,6 +145,32 @@ const redditStore = useRedditStore()
 
 const parseStatus = computed(() => redditStore.parseStatus)
 const parseProgress = computed(() => redditStore.parseProgress)
+const parseMessage = computed(() => redditStore.parseMessage)
+const parseLogs = computed(() => redditStore.parseLogs)
+
+const logEl = ref<HTMLElement | null>(null)
+let elapsedInterval: ReturnType<typeof setInterval> | null = null
+const elapsedSec = ref(0)
+
+const elapsedStr = computed(() => {
+  const s = elapsedSec.value
+  if (s < 60) return `${s}с`
+  return `${Math.floor(s / 60)}хв ${s % 60}с`
+})
+
+watch(parseStatus, (val) => {
+  if (val === 'running') {
+    elapsedSec.value = 0
+    elapsedInterval = setInterval(() => elapsedSec.value++, 1000)
+  } else {
+    if (elapsedInterval) { clearInterval(elapsedInterval); elapsedInterval = null }
+  }
+})
+
+watch(parseLogs, async () => {
+  await nextTick()
+  if (logEl.value) logEl.value.scrollTop = logEl.value.scrollHeight
+}, { deep: true })
 
 const config = ref({
   keywords: [] as string[],
@@ -199,5 +233,27 @@ async function startParse() {
   margin-bottom: 8px;
   font-size: 0.9rem;
   color: #555;
+  flex-wrap: wrap;
+  align-items: center;
 }
+.elapsed { color: #909399; font-size: 0.85rem; }
+.parse-message {
+  margin-top: 10px;
+  font-size: 0.88rem;
+  color: #409eff;
+  font-style: italic;
+}
+.parse-log {
+  margin-top: 10px;
+  max-height: 180px;
+  overflow-y: auto;
+  background: #1e1e2e;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: monospace;
+  font-size: 0.78rem;
+}
+.log-entry { display: flex; gap: 10px; padding: 1px 0; color: #cdd6f4; }
+.log-time { color: #6c7086; flex-shrink: 0; }
+.log-text { color: #cdd6f4; }
 </style>

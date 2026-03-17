@@ -30,6 +30,6 @@ export class RedditParseProcessor {
       job.progress(progress.pct);
       if (cb) cb({ type: 'progress', ...progress });
     });
-    if (cb) cb({ type: 'done' });
+    if (cb) cb({ type: 'done', message: 'Готово!' });
   }
 }

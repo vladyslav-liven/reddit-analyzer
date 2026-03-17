@@ -26,7 +26,7 @@ export class RedditService {
 
   async parseSession(
     sessionId: string,
-    onProgress: (data: { pct: number; posts: number; comments: number }) => void,
+    onProgress: (data: { pct: number; posts: number; comments: number; message?: string }) => void,
   ) {
     const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
     if (!session) throw new Error(`Session ${sessionId} not found`);
@@ -79,7 +79,7 @@ export class RedditService {
         after = res.data?.data?.after;
         pageCount++;
 
-        onProgress({ pct: Math.round((pageCount / maxPages) * 30), posts: posts.length, comments: 0 });
+        onProgress({ pct: Math.round((pageCount / maxPages) * 30), posts: posts.length, comments: 0, message: `Збираю пости, сторінка ${pageCount}/${maxPages}...` });
 
         if (!after) break;
         await new Promise(r => setTimeout(r, 2000));
@@ -112,7 +112,7 @@ export class RedditService {
         }
       }
 
-      onProgress({ pct: 40, posts: savedPosts.length, comments: 0 });
+      onProgress({ pct: 40, posts: savedPosts.length, comments: 0, message: `Збережено ${savedPosts.length} постів. Завантажую коментарі...` });
 
       // Fetch comments for each post
       let commentCount = 0;
@@ -148,7 +148,7 @@ export class RedditService {
         }
 
         const pct = 40 + Math.round(((i + 1) / savedPosts.length) * 55);
-        onProgress({ pct, posts: savedPosts.length, comments: commentCount });
+        onProgress({ pct, posts: savedPosts.length, comments: commentCount, message: `Коментарі: пост ${i + 1}/${savedPosts.length} (r/${p?.subreddit || '?'})` });
       }
 
       await this.sessionRepo.update(sessionId, { parseStatus: 'done', lastParsedAt: new Date() });

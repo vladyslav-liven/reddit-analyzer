@@ -9,8 +9,18 @@ export const useRedditStore = defineStore('reddit', () => {
   const loading = ref(false)
   const parseProgress = ref<{ pct: number; posts: number; comments: number } | null>(null)
   const parseStatus = ref<'idle' | 'running' | 'done' | 'error'>('idle')
+  const parseMessage = ref<string>('')
+  const parseLogs = ref<{ time: string; text: string }[]>([])
+  const parseStartTime = ref<number | null>(null)
   let eventSource: EventSource | null = null
   let pollInterval: ReturnType<typeof setInterval> | null = null
+
+  function addLog(text: string) {
+    const now = new Date()
+    const time = now.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    parseLogs.value.push({ time, text })
+    if (parseLogs.value.length > 100) parseLogs.value.shift()
+  }
 
   async function fetchPosts(sessionId: string, params?: any) {
     loading.value = true
@@ -49,6 +59,10 @@ export const useRedditStore = defineStore('reddit', () => {
   async function startParse(sessionId: string, config: any) {
     parseStatus.value = 'running'
     parseProgress.value = { pct: 0, posts: 0, comments: 0 }
+    parseMessage.value = 'Запускаємо парсинг...'
+    parseLogs.value = []
+    parseStartTime.value = Date.now()
+    addLog('Запускаємо парсинг...')
     await redditApi.startParse(sessionId, config)
 
     if (eventSource) eventSource.close()
@@ -59,12 +73,17 @@ export const useRedditStore = defineStore('reddit', () => {
       const data = JSON.parse(e.data)
       if (data.type === 'progress') {
         parseProgress.value = { pct: data.pct, posts: data.posts, comments: data.comments }
+        if (data.message) { parseMessage.value = data.message; addLog(data.message) }
       } else if (data.type === 'done') {
         parseStatus.value = 'done'
         parseProgress.value = { pct: 100, posts: data.posts || 0, comments: data.comments || 0 }
+        parseMessage.value = 'Готово!'
+        addLog('Готово!')
         eventSource?.close()
       } else if (data.type === 'error') {
         parseStatus.value = 'error'
+        parseMessage.value = 'Помилка парсингу'
+        addLog('Помилка парсингу')
         eventSource?.close()
       }
     }
@@ -84,9 +103,12 @@ export const useRedditStore = defineStore('reddit', () => {
   function resetParse() {
     parseStatus.value = 'idle'
     parseProgress.value = null
+    parseMessage.value = ''
+    parseLogs.value = []
+    parseStartTime.value = null
     stopPolling()
     if (eventSource) { eventSource.close(); eventSource = null }
   }
 
-  return { posts, totalPosts, loading, parseProgress, parseStatus, fetchPosts, startParse, resetParse }
+  return { posts, totalPosts, loading, parseProgress, parseStatus, parseMessage, parseLogs, parseStartTime, fetchPosts, startParse, resetParse }
 })
