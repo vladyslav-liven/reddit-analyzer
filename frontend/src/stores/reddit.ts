@@ -68,6 +68,14 @@ export const useRedditStore = defineStore('reddit', () => {
           parseMessage.value = 'Помилка парсингу'
           addLog('Помилка парсингу')
           stopPolling()
+        } else if (session.parseStatus === 'running') {
+          // Job is alive but no progress yet — still waiting for first Reddit response
+          const elapsed = parseStartTime.value ? Math.round((Date.now() - parseStartTime.value) / 1000) : 0
+          if (elapsed > 30 && lastLoggedMessage !== 'Чекаємо на Reddit...') {
+            parseMessage.value = 'Чекаємо на Reddit...'
+            addLog('Чекаємо на Reddit...')
+            lastLoggedMessage = 'Чекаємо на Reddit...'
+          }
         }
       } catch {}
     }, 2000)

@@ -45,6 +45,8 @@ export class RedditService {
     if (!session) throw new Error(`Session ${sessionId} not found`);
 
     await this.sessionRepo.update(sessionId, { parseStatus: 'running' });
+    // Set initial progress so polling sees the job is alive immediately
+    emitProgress({ pct: 1, posts: 0, comments: 0, message: 'Підключаємось до Reddit...' });
 
     try {
       const keywords = session.keywords || [];
@@ -84,7 +86,7 @@ export class RedditService {
 
         if (after) url += `${url.includes('?') ? '&' : '?'}after=${after}`;
 
-        const res = await axios.get(url, { headers: this.headers });
+        const res = await axios.get(url, { headers: this.headers, timeout: 30000 });
         const children = res.data?.data?.children || [];
         if (children.length === 0) break;
 
@@ -134,7 +136,7 @@ export class RedditService {
         const p = posts[i];
         try {
           const commentsUrl = `${REDDIT_BASE}/r/${p?.subreddit}/comments/${p?.id}.json?sort=top&limit=${topN}`;
-          const commentsRes = await axios.get(commentsUrl, { headers: this.headers });
+          const commentsRes = await axios.get(commentsUrl, { headers: this.headers, timeout: 15000 });
           const commentData = commentsRes.data?.[1]?.data?.children || [];
 
           for (const c of commentData) {
