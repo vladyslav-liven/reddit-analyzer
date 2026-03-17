@@ -65,6 +65,7 @@ export class AiService {
       model,
       summary: result.summary,
       keyInsights: result.keyInsights,
+      commentInsights: result.commentInsights,
       sentiment: result.sentiment,
       painPoints: result.painPoints,
       trendingPhrases: result.trendingPhrases,

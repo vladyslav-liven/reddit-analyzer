@@ -57,7 +57,44 @@
       </el-col>
     </el-row>
 
-    <!-- Row 4: Key Insights with evidence toggle -->
+    <!-- Row 4: Comment Insights -->
+    <el-card v-if="commentInsights?.length" style="margin-bottom: 16px">
+      <template #header>
+        <div class="card-header-with-badge">
+          💬 Comment Insights
+          <el-tag size="small" type="warning">тільки з коментарів</el-tag>
+        </div>
+      </template>
+      <div class="insights-list">
+        <div v-for="(item, i) in commentInsights" :key="i" class="insight-item comment-insight-item">
+          <div class="insight-main">
+            <div class="insight-left">
+              <span class="insight-icon">{{ ['🗣️','👥','💭','🎯','🔍'][i % 5] }}</span>
+              <span class="insight-text">{{ item.insight }}</span>
+            </div>
+            <el-button
+              v-if="item.examples?.length"
+              size="small"
+              text
+              :type="openCommentEvidence === i ? 'warning' : 'default'"
+              @click="openCommentEvidence = openCommentEvidence === i ? null : i"
+            >
+              {{ openCommentEvidence === i ? 'Сховати приклади' : `Приклади (${item.examples.length})` }}
+            </el-button>
+          </div>
+          <div v-if="openCommentEvidence === i && item.examples?.length" class="evidence-panel">
+            <div class="evidence-section">
+              <div class="evidence-label">💬 Реальні коментарі</div>
+              <div v-for="(ex, ei) in item.examples" :key="ei" class="evidence-quote comment-quote">
+                "{{ ex }}"
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-card>
+
+    <!-- Row 5: Key Insights with evidence toggle -->
     <el-card>
       <template #header>Key Insights</template>
       <div class="insights-list">
@@ -118,10 +155,12 @@ const props = defineProps<{
   trendingPhrases: string[]
   painPoints: string[]
   keyInsights: any[]
+  commentInsights: any[]
   posts: Array<{ title: string; score: number; subreddit: string }>
 }>()
 
 const openEvidence = ref<number | null>(null)
+const openCommentEvidence = ref<number | null>(null)
 const getEvidence = (item: any) => (typeof item === 'object' && item.evidence) ? item.evidence : null
 
 const SENTIMENT_COLORS: Record<string, string> = {
@@ -255,6 +294,9 @@ const subredditOption = computed(() => {
 }
 .pain-text { font-size: 0.88rem; color: #444; line-height: 1.5; }
 
+.card-header-with-badge { display: flex; align-items: center; gap: 8px; }
+.comment-insight-item { border-left-color: #e6a23c; }
+.comment-quote { font-style: italic; border-left-color: #e6a23c; }
 .insights-list { display: flex; flex-direction: column; gap: 8px; }
 .insight-item {
   border-radius: 8px; border-left: 3px solid #5470c6;

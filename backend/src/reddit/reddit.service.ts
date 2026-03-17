@@ -34,25 +34,42 @@ export class RedditService {
     await this.sessionRepo.update(sessionId, { parseStatus: 'running' });
 
     try {
-      const query = session.keywords.join(' ');
+      const keywords = session.keywords || [];
       const timeRange = session.timeRange || 'week';
       const sort = session.sort || 'relevance';
       const topN = session.topNComments || 10;
       const maxPosts = session.maxPosts || 100;
       const maxPages = Math.ceil(maxPosts / 25);
+      const hasKeywords = keywords.length > 0;
+      const hasSubreddits = session.subreddits?.length > 0;
+
+      if (!hasKeywords && !hasSubreddits) {
+        throw new Error('Вкажи хоча б ключові слова або сабредіти');
+      }
 
       const posts: any[] = [];
       let after: string | null = null;
       let pageCount = 0;
 
       while (pageCount < maxPages) {
-        let url = `${REDDIT_BASE}/search.json?q=${encodeURIComponent(query)}&t=${timeRange}&sort=${sort}&limit=25&type=link`;
-        if (session.subreddits?.length > 0) {
-          // prefix query with subreddit filter using OR
+        let url: string;
+
+        if (!hasKeywords && hasSubreddits) {
+          // Subreddit-only mode: use multireddit hot/top endpoint
+          const multi = session.subreddits.join('+');
+          const subSort = sort === 'relevance' ? 'hot' : sort;
+          url = `${REDDIT_BASE}/r/${multi}/${subSort}.json?t=${timeRange}&limit=25`;
+        } else if (hasKeywords && hasSubreddits) {
+          // Keywords + subreddits: search within subreddits
           const subFilter = session.subreddits.map(s => `subreddit:${s}`).join(' OR ');
-          url = `${REDDIT_BASE}/search.json?q=${encodeURIComponent(query + ' (' + subFilter + ')')}&t=${timeRange}&sort=${sort}&limit=25&type=link`;
+          const q = encodeURIComponent(`${keywords.join(' ')} (${subFilter})`);
+          url = `${REDDIT_BASE}/search.json?q=${q}&t=${timeRange}&sort=${sort}&limit=25&type=link`;
+        } else {
+          // Keywords only: global search
+          url = `${REDDIT_BASE}/search.json?q=${encodeURIComponent(keywords.join(' '))}&t=${timeRange}&sort=${sort}&limit=25&type=link`;
         }
-        if (after) url += `&after=${after}`;
+
+        if (after) url += `${url.includes('?') ? '&' : '?'}after=${after}`;
 
         const res = await axios.get(url, { headers: this.headers });
         const children = res.data?.data?.children || [];
@@ -65,7 +82,7 @@ export class RedditService {
         onProgress({ pct: Math.round((pageCount / maxPages) * 30), posts: posts.length, comments: 0 });
 
         if (!after) break;
-        await new Promise(r => setTimeout(r, 2000)); // public API: ~10 req/min
+        await new Promise(r => setTimeout(r, 2000));
       }
 
       // Upsert posts

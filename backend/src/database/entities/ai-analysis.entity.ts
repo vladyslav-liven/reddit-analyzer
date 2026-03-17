@@ -34,6 +34,9 @@ export class AiAnalysis {
   @Column({ type: 'jsonb', default: '[]' })
   trendingPhrases: string[];
 
+  @Column({ type: 'jsonb', default: '[]' })
+  commentInsights: any[];
+
   @Column({ type: 'text', default: '' })
   structuredReport: string;
 

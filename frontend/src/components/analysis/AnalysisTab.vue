@@ -68,6 +68,7 @@
         :trending-phrases="activeAnalysis.trendingPhrases || []"
         :pain-points="activeAnalysis.painPoints || []"
         :key-insights="activeAnalysis.keyInsights || []"
+        :comment-insights="activeAnalysis.commentInsights || []"
         :posts="redditStore.posts"
       />
 

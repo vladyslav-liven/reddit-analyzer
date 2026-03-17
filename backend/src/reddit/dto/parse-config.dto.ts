@@ -1,8 +1,9 @@
 import { IsArray, IsString, IsOptional, IsNumber, Min, Max } from 'class-validator';
 
 export class ParseConfigDto {
+  @IsOptional()
   @IsArray()
-  keywords: string[];
+  keywords?: string[];
 
   @IsOptional()
   @IsArray()

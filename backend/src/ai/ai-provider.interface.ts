@@ -24,9 +24,15 @@ export interface KeyInsight {
   evidence: InsightEvidence;
 }
 
+export interface CommentInsight {
+  insight: string;
+  examples: string[];
+}
+
 export interface AnalysisResult {
   summary: string;
   keyInsights: KeyInsight[];
+  commentInsights: CommentInsight[];
   sentiment: { overall: string; byTopic: Record<string, string> };
   painPoints: string[];
   trendingPhrases: string[];

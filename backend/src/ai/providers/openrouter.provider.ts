@@ -68,16 +68,24 @@ Required JSON structure:
       }
     }
   ],
+  "commentInsights": [
+    {
+      "insight": "Specific marketing insight derived ONLY from analyzing comments — what people say, how they feel, what language they use, what problems they mention, what they recommend to others",
+      "examples": ["Exact comment quote that illustrates this insight (max 150 chars)"]
+    }
+  ],
   "sentiment": {
     "overall": "positive|negative|neutral|mixed",
     "byTopic": { "topic1": "positive|negative|neutral", "topic2": "..." }
   },
   "painPoints": ["pain point 1", "pain point 2", "pain point 3"],
   "trendingPhrases": ["phrase1", "phrase2", "phrase3", "phrase4", "phrase5"],
-  "structuredReport": "Full markdown report with sections: ## Executive Summary\\n## Key Insights\\n## Sentiment Analysis\\n## Pain Points\\n## Trending Topics\\n## Marketing Recommendations"
+  "structuredReport": "Full markdown report with sections: ## Executive Summary\\n## Key Insights\\n## Comment Insights\\n## Sentiment Analysis\\n## Pain Points\\n## Trending Topics\\n## Marketing Recommendations"
 }
 
-Provide 5 keyInsights. Each must have 1-3 real examples in evidence from the actual data above.`;
+Rules:
+- Provide 5 keyInsights, each with 1-3 real evidence examples from the data
+- Provide 5 commentInsights focused EXCLUSIVELY on comment content — real opinions, emotions, recurring phrases, hidden needs. Each must have 2-3 direct comment quotes as examples.`;
 
     const response = await this.client.chat.completions.create({
       model: this.model,

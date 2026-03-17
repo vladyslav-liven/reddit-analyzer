@@ -5,8 +5,8 @@
         <el-col :span="24">
           <el-form-item>
             <template #label>
-              Ключові слова
-              <el-tooltip placement="top" :show-after="200" content="Слова або фрази за якими буде шукатись контент на Reddit. Натисни Enter після кожного слова щоб додати. Наприклад: «SaaS», «B2B software», «crm tool» — система знайде пости де згадуються ці теми.">
+              Ключові слова (необов'язково)
+              <el-tooltip placement="top" :show-after="200" content="Слова або фрази за якими буде шукатись контент на Reddit. Натисни Enter після кожного слова щоб додати. Можна залишити порожнім якщо вказані сабредіти — тоді зберуться топ пости з цих спільнот без фільтра по словах.">
                 <el-icon class="info-icon"><InfoFilled /></el-icon>
               </el-tooltip>
             </template>
@@ -106,7 +106,7 @@
       type="primary"
       size="large"
       :loading="parseStatus === 'running'"
-      :disabled="config.keywords.length === 0"
+      :disabled="config.keywords.length === 0 && config.subreddits.length === 0"
       @click="startParse"
     >
       <el-icon v-if="parseStatus !== 'running'"><Search /></el-icon>
@@ -159,8 +159,8 @@ onMounted(() => {
 })
 
 async function startParse() {
-  if (config.value.keywords.length === 0) {
-    ElMessage.warning('Додай хоча б одне ключове слово')
+  if (config.value.keywords.length === 0 && config.value.subreddits.length === 0) {
+    ElMessage.warning('Додай хоча б одне ключове слово або сабредіт')
     return
   }
   try {
