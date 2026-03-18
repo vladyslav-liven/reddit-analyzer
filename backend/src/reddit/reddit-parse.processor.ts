@@ -26,10 +26,15 @@ export class RedditParseProcessor {
     this.logger.log(`Starting parse for session ${sessionId}`);
 
     const cb = this.progressMap.get(sessionId);
-    await this.redditService.parseSession(sessionId, (progress) => {
-      job.progress(progress.pct);
-      if (cb) cb({ type: 'progress', ...progress });
-    });
-    if (cb) cb({ type: 'done', message: 'Готово!' });
+    try {
+      await this.redditService.parseSession(sessionId, (progress) => {
+        job.progress(progress.pct);
+        if (cb) cb({ type: 'progress', ...progress });
+      });
+      if (cb) cb({ type: 'done', message: 'Готово!' });
+    } catch (error) {
+      this.logger.error(`Job failed for session ${sessionId}: ${error.message}`);
+      if (cb) cb({ type: 'error', message: error.message });
+    }
   }
 }

@@ -65,8 +65,9 @@ export const useRedditStore = defineStore('reddit', () => {
           stopPolling()
         } else if (session.parseStatus === 'failed') {
           parseStatus.value = 'error'
-          parseMessage.value = 'Помилка парсингу'
-          addLog('Помилка парсингу')
+          const msg = session.parseError || 'Помилка парсингу. Перевір Deploy Logs у Railway.'
+          parseMessage.value = msg
+          addLog(`ПОМИЛКА: ${msg}`)
           stopPolling()
         } else if (session.parseStatus === 'running') {
           // Job is alive but no progress yet — still waiting for first Reddit response
@@ -89,7 +90,15 @@ export const useRedditStore = defineStore('reddit', () => {
     parseStartTime.value = Date.now()
     lastLoggedMessage = ''
     addLog('Запускаємо парсинг...')
-    await redditApi.startParse(sessionId, config)
+    try {
+      await redditApi.startParse(sessionId, config)
+    } catch (e: any) {
+      parseStatus.value = 'error'
+      const msg = e.response?.data?.message || e.message || 'Помилка старту парсингу'
+      parseMessage.value = msg
+      addLog(`ПОМИЛКА: ${msg}`)
+      return
+    }
 
     // Start polling immediately — works on Railway where SSE is unreliable
     startPolling(sessionId)
@@ -116,8 +125,9 @@ export const useRedditStore = defineStore('reddit', () => {
         eventSource?.close()
       } else if (data.type === 'error') {
         parseStatus.value = 'error'
-        parseMessage.value = 'Помилка парсингу'
-        addLog('Помилка парсингу')
+        const errMsg = data.message ? `Помилка: ${data.message}` : 'Помилка парсингу'
+        parseMessage.value = errMsg
+        addLog(errMsg)
         stopPolling()
         eventSource?.close()
       }

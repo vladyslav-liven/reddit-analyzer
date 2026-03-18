@@ -170,7 +170,8 @@ export class RedditService {
       emitProgress({ pct: 100, posts: savedPosts.length, comments: commentCount, message: 'Готово!' });
       this.clearProgress(sessionId);
     } catch (error) {
-      this.logger.error(`Parse failed for session ${sessionId}: ${error.message}`);
+      this.logger.error(`Parse failed for session ${sessionId}: ${error.message}`, error.stack);
+      this.clearProgress(sessionId);
       await this.sessionRepo.update(sessionId, { parseStatus: 'failed' });
       throw error;
     }
